@@ -1,0 +1,28 @@
+{
+  "name": "pokemon-tc",
+  "version": "1.0.0",
+  "description": "Assembler/Linker for the EPSON S1C88 series microcontrollers",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asterick/pokemon-tc.git"
+  },
+  "keywords": [
+    "pokmon-mini",
+    "s1c88",
+    "assembler"
+  ],
+  "author": "Bryon Vandiver",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/asterick/pokemon-tc/issues"
+  },
+  "homepage": "https://github.com/asterick/pokemon-tc#readme",
+  "dependencies": {
+    "argparse": "^1.0.10",
+    "pegjs": "^0.10.0"
+  }
+}
