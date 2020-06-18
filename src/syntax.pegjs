@@ -1,4 +1,5 @@
 {
+    /* This allows left-associative operators */
     const operators = {
         "||": "LogicalOr",
         "&&": "LogicalAnd",
@@ -28,170 +29,219 @@
     }
 }
 
-SourceLine
-    = WS body:Statement comment:Comment? remainder:(EOL v:$(.*) { return v })?
-        { return { body, comment, remainder } }
+SourceFile
+    = _ 
+     a:(v:Statement Comment? EOL { return v })* 
+        b:Statement Comment? EOL?
+        { return a.concat(b) }
 
 Statement
     = ControlStatement 
     / label:Label? statement:(InstructionStatement / DirectiveStatement / MacroCallStatement)?
         { return { type: "Statement", label, statement }}
 
+// Control Statements
 ControlStatement
     = "$" name:Identifier args:(Number / String / Identifier)+
         { return { type: "ControlStatment", name, args } }
 
+// Directives
 DirectiveStatement
-    = name:Identifier "MACRO"i WB IdentifierList
+    // Debugging
+    = "CALLS"i WB ExpressionList
+    / "SYMB"i WB ExpressionList?
 
-    / name:Identifier "EQU"i WB Expression
-    / name:Identifier "SET"i WB Expression
-
-    / "DEFSECT"i WB String "," WS Identifier ( "," WS SectionAttribute)* ("AT"i WB Expression)?
-
-    / "EXTERN"i WB ("(" WS IdentifierList ")" WS)? IdentifierList
+    // Assembly Control
+    / "ALIGN"i WB Expression
     / "COMMENT"i WB delimiter:. (c:. !{ c == delimiter})*
     / "DEFINE"i WB Identifier Expression
-    / "UNDEF"i WB IdentifierList
-
-    / "DUP"i WB Expression
-    / "DUPA"i WB Identifier "," WS ExpressionList
-    / "DUPC"i WB Identifier "," WS Expression
-    / "DUPF"i WB Identifier ("," WS Expression)? "," WS Expression ("," WS Expression)?
-
-    / "INCLUDE"i WB String
-
-    / "ALIGN"i WB ExpressionList
-    / "ASCII"i WB ExpressionList
-    / "ASCIZ"i WB ExpressionList
-    / "CALLS"i WB ExpressionList
-    / "DB"i WB ExpressionList
-    / "DS"i WB ExpressionList
-    / "DW"i WB ExpressionList
+    / "DEFSECT"i WB String "," _ Identifier ( "," _ SectionAttribute)* ("AT"i WB Expression)?
     / "END"i WB
-    / "ENDIF"i WB
-    / "ENDM"i WB
-    / "EXITM"i WB
     / "FAIL"i WB ExpressionList?
-    / "GLOBAL"i WB ExpressionList?
-    / "IF"i WB ExpressionList?
-    / "LOCAL"i WB ExpressionList?
+    / "INCLUDE"i WB String
     / "MSG"i WB ExpressionList?
-    / "NAME"i WB ExpressionList?
-    / "PMACRO"i WB ExpressionList?
     / "RADIX"i WB ExpressionList?
     / "SECT"i WB ExpressionList?
-    / "SYMB"i WB ExpressionList?
+    / "UNDEF"i WB IdentifierList
     / "WARN"i WB ExpressionList?
 
+    // Symbol Definition
+    / name:Identifier "EQU"i WB value:Expression
+        { return { type: "EquDirective", name, value } }
+    / "EXTERN"i WB ("(" _ IdentifierList ")" _)? IdentifierList
+    / "GLOBAL"i WB ExpressionList?
+    / "LOCAL"i WB ExpressionList?
+    / "NAME"i WB ExpressionList?
+    / name:Identifier "SET"i WB Expression
+        { return { type: "SetDirective", name, value } }
+
+    // Data Definition/Storage Allocation
+    / "ASCII"i WB values:ExpressionList
+        { return { type: "AsciiDirective", values } }
+    / "ASCIZ"i WB values:ExpressionList
+        { return { type: "TerminatedAsciiDirective", values } }
+    / "DB"i WB values:ExpressionList
+        { return { type: "DataConstantByteDirective", values } }
+    / "DS"i WB values:ExpressionList
+        { return { type: "DataStorageDirective", values } }
+    / "DW"i WB values:ExpressionList
+        { return { type: "DataConstantWordDirective", values } }
+
+    // Macro and Conditional Assembly
+    / MacroDirective
+    / IfDirective
+    / "EXITM"i WB
+        { return { type: "ExitMacroDirective" } }
+    / "PMACRO"i WB names:IdentifierList
+        { return { type: "PurgeMacroDirective", names } }
+
 SectionAttribute
-    = "FIT"i WB Number
+    = "FIT"i WB size:Number
+        { return { type: "Fit", size } }
     / "SHORT"i WB
+        { return { type: "Short" } }
     / "CLEAR"i WB
+        { return { type: "Clear" } }
     / "NOCLEAR"i WB
+        { return { type: "NoClear" } }
     / "INIT"i WB
+        { return { type: "Init" } }
     / "OVERLAY"i WB
+        { return { type: "Overlay" } }
     / "ROMDATA"i WB
+        { return { type: "RomData" } }
     / "JOIN"i WB
+        { return { type: "Join" } }
+
+// Macro Directives
+MacroDirective
+    = kind:MacroKind Comment? EOL body:$MacroBody* MacroEnd
+        { return { type:"Macro", kind, body } }
+
+MacroKind
+    = name:Identifier "MACRO"i WB args:IdentifierList
+        { return { type: "MacroDefinition", name, args } }
+    / "DUP"i WB count:Expression
+        { return { type: "Duplicate", count } }
+    / "DUPA"i WB name:Identifier "," _ count:ExpressionList
+        { return { type: "DuplicateArgument", name, count } }
+    / "DUPC"i WB name:Identifier "," _ string:Expression
+        { return { type: "DuplicateCharacters", name, count, string } }
+    / "DUPF"i WB name:Identifier start:("," _ v:Expression {return v})? "," _ end:Expression increment:("," _ v:Expression {return v})?
+        { return { type: "DuplicateLoop", name, start, end, increment } }
+
+MacroBody
+    = !MacroEnd v:$(LineContinuation / !EOL .)* EOL
+
+MacroEnd
+    = "ENDM"i WB
+
+// Conditional assembly
+IfDirective
+    = "IF"i WB condition:Expression Comment? EOL body:IfBody
+       elseBody:("ELSE"i WB Comment? EOL v:IfBody { return v })?
+       "ENDIF"i WB
+        { return { type: "IfDirective", body, elseBody } }
+
+IfBody
+    = (s:Statement Comment? EOL {return s})*
 
 // Instruction Statements
 InstructionStatement
+    // Mnemonic is appened at runtime using the table
     = name:Mnemonic operands:OperandList?
         { return { type: "InstructionStatement", name, operands } }
 
+OperandList
+    = a:(v:Operand "," _ { return v })* b:Operand
+        { return a.concat(b) }
+
 Operand
     = Expression
-    / "[" WS address:Expression "]" WS
+    / "#" _ value:Expression
+        { return { type:"ImmediateAccess", value } }
+    / "[" _ address:Expression "]" _
         { return { type:"MemoryAccess", address } }
-    / "[" WS "BR"i WS ":" WS address:Expression "]" WS
+    / "[" _ "BR"i _ ":" _ address:Expression "]" _
         { return { type:"TinyMemoryAccess", address } }
-
-// Lists
-OperandList
-    = a:(v:Operand "," WS { return v })* b:Operand
-        { return a.concat(b) }
-
-IdentifierList
-    = a:(v:Identifier "," WS { return v })* b:Identifier
-        { return a.concat(b) }
-
-MacroCallArgList
-    = a:(v:MacroCallArg "," WS { return v })* b:MacroCallArg
-        { a.concat(b) }
-
-ExpressionList
-    = a:(v:Expression "," WS { return v })* b:Expression
-        { return a.concat(b) }
 
 // Macro Call
 MacroCallStatement
     = name:Identifier args:MacroCallArgList?
         { return { type: "MacroCall", name, args } }
 
+MacroCallArgList
+    = a:(v:MacroCallArg "," _ { return v })* b:MacroCallArg
+        { a.concat(b) }
+
 MacroCallArg
-    = n:$(![ ,\n\r\t] .)* WS
+    = n:$(![ ,\n\r\t] .)* _
         { return n }
     / SingleQuoteString
 
 // Expression
+ExpressionList
+    = a:(v:Expression "," _ { return v })* b:Expression
+        { return a.concat(b) }
+
 Expression
-    = first:LogicalAndExpresion rest:("||" WS LogicalAndExpresion)*
+    = first:LogicalAndExpresion rest:("||" _ LogicalAndExpresion)*
         { return assoc(first, rest) }
 
 LogicalAndExpresion
-    = first:BitwiseOrExpresion rest:("&&" WS BitwiseOrExpresion)*
+    = first:BitwiseOrExpresion rest:("&&" _ BitwiseOrExpresion)*
         { return assoc(first, rest) }
 
 BitwiseOrExpresion
-    = first:BitwiseXorExpresion rest:("|" WS BitwiseXorExpresion)*
+    = first:BitwiseXorExpresion rest:("|" _ BitwiseXorExpresion)*
         { return assoc(first, rest) }
 
 BitwiseXorExpresion
-    = first:BitwiseAndExpresion rest:("^" WS BitwiseAndExpresion)*
+    = first:BitwiseAndExpresion rest:("^" _ BitwiseAndExpresion)*
         { return assoc(first, rest) }
 
 BitwiseAndExpresion
-    = first:EqualityExpression rest:("&" WS EqualityExpression)*
+    = first:EqualityExpression rest:("&" _ EqualityExpression)*
         { return assoc(first, rest) }
 
 EqualityExpression
-    = first:CompareExpression rest:(("==" / "!=") WS CompareExpression)*
+    = first:CompareExpression rest:(("==" / "!=") _ CompareExpression)*
         { return assoc(first, rest) }
 
 CompareExpression
-    = first:ShiftExpression rest:((">=" / "<=" / ">" / "<") WS ShiftExpression)*
+    = first:ShiftExpression rest:((">=" / "<=" / ">" / "<") _ ShiftExpression)*
         { return assoc(first, rest) }
 
 ShiftExpression
-    = first:AdditionExpression rest:(("<<" / ">>") WS AdditionExpression)*
+    = first:AdditionExpression rest:(("<<" / ">>") _ AdditionExpression)*
         { return assoc(first, rest) }
 
 AdditionExpression
-    = first:MultiplicationExpression rest:(("+" / "-") WS MultiplicationExpression)*
+    = first:MultiplicationExpression rest:(("+" / "-") _ MultiplicationExpression)*
         { return assoc(first, rest) }
 
 MultiplicationExpression
-    = first:UnaryExpression rest:(("*" / "/" / "%") WS UnaryExpression)*
+    = first:UnaryExpression rest:(("*" / "/" / "%") _ UnaryExpression)*
         { return assoc(first, rest) }
 
 UnaryExpression
-    = "+" WS value:TopExpression
+    = "+" _ value:TopExpression
         { return value }
-    / "-" WS value:TopExpression
+    / "-" _ value:TopExpression
         { return { type: "UnaryExpression", operation: "Negate", value } }
-    / "~" WS value:TopExpression
+    / "~" _ value:TopExpression
         { return { type: "UnaryExpression", operation: "Complement", value } }
-    / "!" WS value:TopExpression
+    / "!" _ value:TopExpression
         { return { type: "UnaryExpression", operation: "Not", value } }
     / TopExpression
 
 TopExpression
-    = "@" name:Identifier "(" WS args:ExpressionList? ")" WS
+    = "@" name:Identifier "(" _ args:ExpressionList? ")" _
         { return { type: "FunctionExpression", name, args } }
-    / "(" WS e:Expression ")" WS
+    / "(" _ e:Expression ")" _
         { return e; }
-    / "#" WS value:Expression
-        { return { type: 'Immediate', value } }
+    / "*" _
+        { return { type: "LocationCounter" } }
     / value:Identifier
         { return { type: 'Symbol', value } }
     / value:String
@@ -201,44 +251,50 @@ TopExpression
 
 // Atomic values
 Label
-    = v:Identifier ":" WS
+    = v:Identifier ":" _
         { return v }
 
+IdentifierList
+    = a:(v:Identifier "," _ { return v })* b:Identifier
+        { return a.concat(b) }
+
+Identifier
+    = v:$([_a-z]i ([_a-z0-9]i)*) _
+        { return v }
 String
     = DoubleQuoteString
     / SingleQuoteString
 
 DoubleQuoteString
-    = '"' v:$(!'"' .)* '"' WS
+    = '"' v:$(!'"' .)* '"' _
         { return v }
 
 SingleQuoteString
-    = "'" v:$(!"'" .)* "'" WS
+    = "'" v:$(!"'" .)* "'" _
         { return v }
 
 Number
-    = v:$([0-9] ([0-9a-f]i)*) "h"i WS
+    = v:$([0-9] ([0-9a-f]i)*) "h"i _
         { return parseInt(v, 16) }
-    / v:$[0-8]+ "o"i WS
+    / v:$[0-8]+ "o"i _
         { return parseInt(v, 8) }
-    / v:$[0-1]+ "b"i WS
+    / v:$[0-1]+ "b"i _
         { return parseInt(v, 2) }
-    / v:$[0-9]+ "d"? WS
+    / v:$[0-9]+ "d"? _
         { return parseInt(v, 10) }
-
-Identifier
-    = v:$([_a-z]i ([_a-z0-9]i)*) WS
-        { return v }
 
 // Whitespace based tokens
 Comment
-    = ";" (![\n\r] .)*
+    = ";" (LineContinuation / !EOL .)*
+
+LineContinuation
+    = "\\" EOL
 
 EOL
-    = ("\n" "\r"? / "\r" "\n"?)
+    = ("\n" "\r"? / "\r" "\n"?) _
 
-WS
-    = ([ \t] / "\\" EOL)*
+_
+    = (LineContinuation / [ \t])*
 
 WB
-    = ![_a-z0-9]i WS
+    = ![_a-z0-9]i _
