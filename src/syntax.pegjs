@@ -46,10 +46,10 @@ ControlStatement
 // Directives
 DirectiveStatement
     // Debugging
-    = "CALLS"i WB ExpressionList
-        // TODO
-    / "SYMB"i WB ExpressionList?
-        // TODO
+    = "CALLS"i WB caller:String callees:("," _ callee:String stack:("," _ v:Expression { return v})? { return { callee, stack } } )+
+        { return { type:"CallTraceDirective", caller, callees } }
+    / "SYMB"i WB operands:OperandList
+        { return { type:"DebugSymbolDirective",  operands } }
 
     // Assembly Control
     / "ALIGN"i WB value:Expression
