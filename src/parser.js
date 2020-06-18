@@ -7,7 +7,7 @@ const table = require("./table.js");
 const mnemonic = 
     Object.keys(table.INSTRUCTION_TABLE)
         .sort((a, b) => b.length - a.length)
-        .map((v) => `"${v}"i`)
+        .map((v) => `"${v}"i WB`)
         .join(" / ");
 
 const parseSource = fs.readFileSync(path.join(__dirname, "syntax.pegjs"), 'utf-8') +
@@ -21,11 +21,12 @@ function parse(source) {
     while (source) {
         try {
             const row = parser.parse(source);
-            const statement = row.body.statement
+            const statement = row.body
             console.log(statement)
             source = row.remainder;
         } catch(e) {
-            console.log(source)
+            console.log(source);
+            
             throw e;
             break ;
         }

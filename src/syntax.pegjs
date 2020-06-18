@@ -42,45 +42,47 @@ ControlStatement
         { return { type: "ControlStatment", name, args } }
 
 DirectiveStatement
-    = directive:DirectiveSimple WB ExpressionList?
-    / name:Identifier "MACRO"i WB IdentifierList
+    = name:Identifier "MACRO"i WB IdentifierList
+
     / name:Identifier "EQU"i WB Expression
     / name:Identifier "SET"i WB Expression
-    
+
+    / "DEFSECT"i WB String "," WS Identifier ( "," WS SectionAttribute)* ("AT"i WB Expression)?
+
     / "EXTERN"i WB ("(" WS IdentifierList ")" WS)? IdentifierList
     / "COMMENT"i WB delimiter:. (c:. !{ c == delimiter})*
     / "DEFINE"i WB Identifier Expression
-    / "DEFSECT"i WB String "," WS Identifier ( "," WS SectionAttribute)* ("AT"i WB Expression)?
-    / "UNDEF"i WB Identifier
+    / "UNDEF"i WB IdentifierList
+
+    / "DUP"i WB Expression
     / "DUPA"i WB Identifier "," WS ExpressionList
     / "DUPC"i WB Identifier "," WS Expression
     / "DUPF"i WB Identifier ("," WS Expression)? "," WS Expression ("," WS Expression)?
-    / "DUP"i WB Expression
 
-DirectiveSimple
-    = "INCLUDE"i
-    / "GLOBAL"i
-    / "PMACRO"i
-    / "ALIGN"i
-    / "ASCII"i
-    / "ASCIZ"i
-    / "CALLS"i
-    / "RADIX"i
-    / "ENDIF"i
-    / "EXITM"i
-    / "ENDM"i
-    / "FAIL"i
-    / "WARN"i
-    / "LOCAL"i
-    / "NAME"i
-    / "SECT"i
-    / "SYMB"i
-    / "MSG"i
-    / "END"i
-    / "IF"i
-    / "DB"i
-    / "DS"i
-    / "DW"i
+    / "INCLUDE"i WB String
+
+    / "ALIGN"i WB ExpressionList
+    / "ASCII"i WB ExpressionList
+    / "ASCIZ"i WB ExpressionList
+    / "CALLS"i WB ExpressionList
+    / "DB"i WB ExpressionList
+    / "DS"i WB ExpressionList
+    / "DW"i WB ExpressionList
+    / "END"i WB
+    / "ENDIF"i WB
+    / "ENDM"i WB
+    / "EXITM"i WB
+    / "FAIL"i WB ExpressionList?
+    / "GLOBAL"i WB ExpressionList?
+    / "IF"i WB ExpressionList?
+    / "LOCAL"i WB ExpressionList?
+    / "MSG"i WB ExpressionList?
+    / "NAME"i WB ExpressionList?
+    / "PMACRO"i WB ExpressionList?
+    / "RADIX"i WB ExpressionList?
+    / "SECT"i WB ExpressionList?
+    / "SYMB"i WB ExpressionList?
+    / "WARN"i WB ExpressionList?
 
 SectionAttribute
     = "FIT"i WB Number
@@ -94,7 +96,7 @@ SectionAttribute
 
 // Instruction Statements
 InstructionStatement
-    = name:Mnemonic WB operands:OperandList?
+    = name:Mnemonic operands:OperandList?
         { return { type: "InstructionStatement", name, operands } }
 
 Operand
@@ -203,12 +205,15 @@ Label
         { return v }
 
 String
-    = '"' v:(!'"' .)* '"' WS
-        { return v }
+    = DoubleQuoteString
     / SingleQuoteString
 
+DoubleQuoteString
+    = '"' v:$(!'"' .)* '"' WS
+        { return v }
+
 SingleQuoteString
-    = "'" v:(!"'" .)* "'" WS
+    = "'" v:$(!"'" .)* "'" WS
         { return v }
 
 Number
