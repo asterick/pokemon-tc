@@ -30,9 +30,7 @@
 }
 
 SourceFile
-    = _ 
-     a:(v:Statement Comment? EOL { return v })* 
-        b:Statement Comment? EOL?
+    = _ a:(v:Statement Comment? EOL { return v })* b:Statement Comment? EOL?
         { return a.concat(b) }
 
 Statement
@@ -49,29 +47,49 @@ ControlStatement
 DirectiveStatement
     // Debugging
     = "CALLS"i WB ExpressionList
+        // TODO
     / "SYMB"i WB ExpressionList?
+        // TODO
 
     // Assembly Control
-    / "ALIGN"i WB Expression
-    / "COMMENT"i WB delimiter:. (c:. !{ c == delimiter})*
-    / "DEFINE"i WB Identifier Expression
-    / "DEFSECT"i WB String "," _ Identifier ( "," _ SectionAttribute)* ("AT"i WB Expression)?
+    / "ALIGN"i WB value:Expression
+        { return { type: "AlignDirective", value } }
+    / "COMMENT"i WB delimiter:.  text:$(c:. !{ return c == delimiter })* c:. &{ return c == delimiter } _
+        { return { type: "CommentDirective", text } }
+    / "DEFINE"i WB name:Identifier value:String
+        { return { type: "DefineDirective", name, value } }
+    / "DEFSECT"i WB name:String "," _ type:Identifier attributes:("," _ v:SectionAttribute { return v })* location:("AT"i WB v:Expression { return v})?
+        { return { type: "DefineSectionDirective", name, type, attributes, location } }
     / "END"i WB
-    / "FAIL"i WB ExpressionList?
-    / "INCLUDE"i WB String
-    / "MSG"i WB ExpressionList?
-    / "RADIX"i WB ExpressionList?
-    / "SECT"i WB ExpressionList?
+        { return { type: "EndDirective" } }
+    / "FAIL"i WB msgs:ExpressionList?
+        { return { type: "FailDirective", msgs } }
+    / "INCLUDE"i WB file:String
+        { return { type: "IncludeDirective", file } } 
+    / "INCLUDE"i WB "<" file:$(!">" .)* ">" _
+        { return { type: "GlobalIncludeDirective", file } } 
+    / "MSG"i WB msgs:ExpressionList?
+        { return { type: "MessageDirective", msgs } }
+    / "RADIX"i WB value:Expression
+        { return { type: "RadixDirective", value } }
+    / "SECT"i WB name:String reset:("," _ "RESET"i WB)?
+        { return { type: "SectionDirective", name, reset:Boolean(reset) } }
     / "UNDEF"i WB IdentifierList
-    / "WARN"i WB ExpressionList?
+        { return { type: "UndefineDirective", names } }
+    / "WARN"i WB msgs:ExpressionList?
+        { return { type: "WarnDirective", msgs } }
 
     // Symbol Definition
     / name:Identifier "EQU"i WB value:Expression
         { return { type: "EquDirective", name, value } }
-    / "EXTERN"i WB ("(" _ IdentifierList ")" _)? IdentifierList
-    / "GLOBAL"i WB ExpressionList?
-    / "LOCAL"i WB ExpressionList?
-    / "NAME"i WB ExpressionList?
+    / "EXTERN"i WB attributes:("(" _ v:IdentifierList ")" _ { return v })? names:IdentifierList
+        { return { type: "ExternDirective", attributes, names } }
+    / "GLOBAL"i WB names:IdentifierList
+        { return { type: "GlobalDirective", names } }
+    / "LOCAL"i WB names:IdentifierList
+        { return { type: "LocalDirective", names } }
+    / "NAME"i WB name:String
+        { return { type: "NameDirective", name } }
     / name:Identifier "SET"i WB Expression
         { return { type: "SetDirective", name, value } }
 
@@ -138,13 +156,17 @@ MacroEnd
 
 // Conditional assembly
 IfDirective
-    = "IF"i WB condition:Expression Comment? EOL body:IfBody
-       elseBody:("ELSE"i WB Comment? EOL v:IfBody { return v })?
-       "ENDIF"i WB
-        { return { type: "IfDirective", body, elseBody } }
+    = "IF"i WB condition:Expression Comment? EOL body:ElseIfStatement* elseBody:ElseDirective EndIfDirective
+        { return { type: "IfDirective", condition, body, elseBody } }
 
-IfBody
-    = (s:Statement Comment? EOL {return s})*
+ElseDirective
+    = "ELSE"i WB Comment? EOL body:ElseIfStatement { return body }
+
+EndIfDirective
+    = "ENDIF"i WB
+
+ElseIfStatement
+    = !(ElseDirective / EndIfDirective) s:Statement Comment? EOL { return s }
 
 // Instruction Statements
 InstructionStatement
@@ -274,14 +296,16 @@ SingleQuoteString
         { return v }
 
 Number
-    = v:$([0-9] ([0-9a-f]i)*) "h"i _
-        { return parseInt(v, 16) }
-    / v:$[0-8]+ "o"i _
-        { return parseInt(v, 8) }
-    / v:$[0-1]+ "b"i _
-        { return parseInt(v, 2) }
-    / v:$[0-9]+ "d"? _
-        { return parseInt(v, 10) }
+    = value:$([0-9] ([0-9a-f]i)*) "h"i _
+        { return parseInt(value, 16) }
+    / value:$[0-9]+ "d" _
+        { return parseInt(value, 10) }
+    / value:$[0-8]+ "o"i _
+        { return parseInt(value, 8) }
+    / value:$[0-1]+ "b"i _
+        { return parseInt(value, 2) }
+    / value:$([0-9] [0-9a-z]i*) _
+        { return { type: "RadixNumber", value } }
 
 // Whitespace based tokens
 Comment
