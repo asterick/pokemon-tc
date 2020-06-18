@@ -1,12 +1,12 @@
-const fs = require("fs");
+const { Environment } = require("./environment.js");
+const { Assembler } = require("./assembler.js");
 
-const parser = require("./parser.js");
 const args = require("./args.js");
 
-if (args.assemble) {
-    args.input.forEach((fn) => {
-        const src = fs.readFileSync(fn, "utf-8");
-       
-        parser.parse(src);
-    });
-}
+args.assemble.forEach((fn) => {
+    const environment = new Environment(args);
+    const assembler = new Assembler(environment);
+
+    assembler.assemble(fn);
+});
+

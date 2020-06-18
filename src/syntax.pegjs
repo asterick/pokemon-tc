@@ -21,10 +21,10 @@
         "-": "Subtract"
     }
 
-    function assoc(first, rest) {
+    function assoc(first, rest, location ) {
         return rest.reduce((left, next) => {
             const [ op, _, right ] = next;
-            return { type: "BinaryOperation", operation: operators[op], left, right }
+            return { type: "BinaryOperation", operation: operators[op], left, right, location }
         }, first);
     }
 }
@@ -36,117 +36,117 @@ SourceFile
 Statement
     = ControlStatement 
     / label:Label? statement:(InstructionStatement / DirectiveStatement / MacroCallStatement)?
-        { return { type: "Statement", label, statement }}
+        { return { type: "Statement", label, statement, location }}
 
 // Control Statements
 ControlStatement
     = "$" name:Identifier args:(Number / String / Identifier)+
-        { return { type: "ControlStatment", name, args } }
+        { return { type: "ControlStatment", name, args, location } }
 
 // Directives
 DirectiveStatement
     // Debugging
     = "CALLS"i WB caller:String callees:("," _ callee:String stack:("," _ v:Expression { return v})? { return { callee, stack } } )+
-        { return { type:"CallTraceDirective", caller, callees } }
+        { return { type:"CallTraceDirective", caller, callees, location } }
     / "SYMB"i WB operands:OperandList
-        { return { type:"DebugSymbolDirective",  operands } }
+        { return { type:"DebugSymbolDirective",  operands, location } }
 
     // Assembly Control
     / "ALIGN"i WB value:Expression
-        { return { type: "AlignDirective", value } }
+        { return { type: "AlignDirective", value, location } }
     / "COMMENT"i WB delimiter:.  text:$(c:. !{ return c == delimiter })* c:. &{ return c == delimiter } _
-        { return { type: "CommentDirective", text } }
+        { return { type: "CommentDirective", text, location } }
     / "DEFINE"i WB name:Identifier value:String
-        { return { type: "DefineDirective", name, value } }
+        { return { type: "DefineDirective", name, value, location } }
     / "DEFSECT"i WB name:String "," _ type:Identifier attributes:("," _ v:SectionAttribute { return v })* location:("AT"i WB v:Expression { return v})?
-        { return { type: "DefineSectionDirective", name, type, attributes, location } }
+        { return { type: "DefineSectionDirective", name, type, attributes, location, location } }
     / "END"i WB
-        { return { type: "EndDirective" } }
+        { return { type: "EndDirective", location } }
     / "FAIL"i WB msgs:ExpressionList?
-        { return { type: "FailDirective", msgs } }
+        { return { type: "FailDirective", msgs, location } }
     / "INCLUDE"i WB file:String
-        { return { type: "IncludeDirective", file } } 
+        { return { type: "IncludeDirective", file, location } } 
     / "INCLUDE"i WB "<" file:$(!">" .)* ">" _
-        { return { type: "GlobalIncludeDirective", file } } 
+        { return { type: "GlobalIncludeDirective", file, location } } 
     / "MSG"i WB msgs:ExpressionList?
-        { return { type: "MessageDirective", msgs } }
+        { return { type: "MessageDirective", msgs, location } }
     / "RADIX"i WB value:Expression
-        { return { type: "RadixDirective", value } }
+        { return { type: "RadixDirective", value, location } }
     / "SECT"i WB name:String reset:("," _ "RESET"i WB)?
-        { return { type: "SectionDirective", name, reset:Boolean(reset) } }
+        { return { type: "SectionDirective", name, reset:Boolean(reset), location } }
     / "UNDEF"i WB IdentifierList
-        { return { type: "UndefineDirective", names } }
+        { return { type: "UndefineDirective", names, location } }
     / "WARN"i WB msgs:ExpressionList?
-        { return { type: "WarnDirective", msgs } }
+        { return { type: "WarnDirective", msgs, location } }
 
     // Symbol Definition
     / name:Identifier "EQU"i WB value:Expression
-        { return { type: "EquDirective", name, value } }
+        { return { type: "EquDirective", name, value, location } }
     / "EXTERN"i WB attributes:("(" _ v:IdentifierList ")" _ { return v })? names:IdentifierList
-        { return { type: "ExternDirective", attributes, names } }
+        { return { type: "ExternDirective", attributes, names, location } }
     / "GLOBAL"i WB names:IdentifierList
-        { return { type: "GlobalDirective", names } }
+        { return { type: "GlobalDirective", names, location } }
     / "LOCAL"i WB names:IdentifierList
-        { return { type: "LocalDirective", names } }
+        { return { type: "LocalDirective", names, location } }
     / "NAME"i WB name:String
-        { return { type: "NameDirective", name } }
+        { return { type: "NameDirective", name, location } }
     / name:Identifier "SET"i WB Expression
-        { return { type: "SetDirective", name, value } }
+        { return { type: "SetDirective", name, value, location } }
 
     // Data Definition/Storage Allocation
     / "ASCII"i WB values:ExpressionList
-        { return { type: "AsciiDirective", values } }
+        { return { type: "AsciiDirective", values, location } }
     / "ASCIZ"i WB values:ExpressionList
-        { return { type: "TerminatedAsciiDirective", values } }
+        { return { type: "TerminatedAsciiDirective", values, location } }
     / "DB"i WB values:ExpressionList
-        { return { type: "DataConstantByteDirective", values } }
+        { return { type: "DataConstantByteDirective", values, location } }
     / "DS"i WB values:ExpressionList
-        { return { type: "DataStorageDirective", values } }
+        { return { type: "DataStorageDirective", values, location } }
     / "DW"i WB values:ExpressionList
-        { return { type: "DataConstantWordDirective", values } }
+        { return { type: "DataConstantWordDirective", values, location } }
 
     // Macro and Conditional Assembly
     / MacroDirective
     / IfDirective
     / "EXITM"i WB
-        { return { type: "ExitMacroDirective" } }
+        { return { type: "ExitMacroDirective", location } }
     / "PMACRO"i WB names:IdentifierList
-        { return { type: "PurgeMacroDirective", names } }
+        { return { type: "PurgeMacroDirective", names, location } }
 
 SectionAttribute
     = "FIT"i WB size:Number
-        { return { type: "Fit", size } }
+        { return { type: "Fit", size, location } }
     / "SHORT"i WB
-        { return { type: "Short" } }
+        { return { type: "Short", location } }
     / "CLEAR"i WB
-        { return { type: "Clear" } }
+        { return { type: "Clear", location } }
     / "NOCLEAR"i WB
-        { return { type: "NoClear" } }
+        { return { type: "NoClear", location } }
     / "INIT"i WB
-        { return { type: "Init" } }
+        { return { type: "Init", location } }
     / "OVERLAY"i WB
-        { return { type: "Overlay" } }
+        { return { type: "Overlay", location } }
     / "ROMDATA"i WB
-        { return { type: "RomData" } }
+        { return { type: "RomData", location } }
     / "JOIN"i WB
-        { return { type: "Join" } }
+        { return { type: "Join", location } }
 
 // Macro Directives
 MacroDirective
     = kind:MacroKind Comment? EOL body:$MacroBody* MacroEnd
-        { return { type:"Macro", kind, body } }
+        { return { type:"Macro", kind, body, location } }
 
 MacroKind
     = name:Identifier "MACRO"i WB args:IdentifierList
-        { return { type: "MacroDefinition", name, args } }
+        { return { type: "MacroDefinition", name, args, location } }
     / "DUP"i WB count:Expression
-        { return { type: "Duplicate", count } }
+        { return { type: "Duplicate", count, location } }
     / "DUPA"i WB name:Identifier "," _ count:ExpressionList
-        { return { type: "DuplicateArgument", name, count } }
+        { return { type: "DuplicateArgument", name, count, location } }
     / "DUPC"i WB name:Identifier "," _ string:Expression
-        { return { type: "DuplicateCharacters", name, count, string } }
+        { return { type: "DuplicateCharacters", name, count, string, location } }
     / "DUPF"i WB name:Identifier start:("," _ v:Expression {return v})? "," _ end:Expression increment:("," _ v:Expression {return v})?
-        { return { type: "DuplicateLoop", name, start, end, increment } }
+        { return { type: "DuplicateLoop", name, start, end, increment, location } }
 
 MacroBody
     = !MacroEnd v:$(LineContinuation / !EOL .)* EOL
@@ -157,7 +157,7 @@ MacroEnd
 // Conditional assembly
 IfDirective
     = "IF"i WB condition:Expression Comment? EOL body:ElseIfStatement* elseBody:ElseDirective EndIfDirective
-        { return { type: "IfDirective", condition, body, elseBody } }
+        { return { type: "IfDirective", condition, body, elseBody, location } }
 
 ElseDirective
     = "ELSE"i WB Comment? EOL body:ElseIfStatement { return body }
@@ -172,7 +172,7 @@ ElseIfStatement
 InstructionStatement
     // Mnemonic is appened at runtime using the table
     = name:Mnemonic operands:OperandList?
-        { return { type: "InstructionStatement", name, operands } }
+        { return { type: "InstructionStatement", name, operands, location } }
 
 OperandList
     = a:(v:Operand "," _ { return v })* b:Operand
@@ -181,16 +181,16 @@ OperandList
 Operand
     = Expression
     / "#" _ value:Expression
-        { return { type:"ImmediateAccess", value } }
+        { return { type:"ImmediateAccess", value, location } }
     / "[" _ address:Expression "]" _
-        { return { type:"MemoryAccess", address } }
+        { return { type:"MemoryAccess", address, location } }
     / "[" _ "BR"i _ ":" _ address:Expression "]" _
-        { return { type:"TinyMemoryAccess", address } }
+        { return { type:"TinyMemoryAccess", address, location } }
 
 // Macro Call
 MacroCallStatement
     = name:Identifier args:MacroCallArgList?
-        { return { type: "MacroCall", name, args } }
+        { return { type: "MacroCall", name, args, location } }
 
 MacroCallArgList
     = a:(v:MacroCallArg "," _ { return v })* b:MacroCallArg
@@ -208,68 +208,68 @@ ExpressionList
 
 Expression
     = first:LogicalAndExpresion rest:("||" _ LogicalAndExpresion)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 LogicalAndExpresion
     = first:BitwiseOrExpresion rest:("&&" _ BitwiseOrExpresion)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 BitwiseOrExpresion
     = first:BitwiseXorExpresion rest:("|" _ BitwiseXorExpresion)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 BitwiseXorExpresion
     = first:BitwiseAndExpresion rest:("^" _ BitwiseAndExpresion)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 BitwiseAndExpresion
     = first:EqualityExpression rest:("&" _ EqualityExpression)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 EqualityExpression
     = first:CompareExpression rest:(("==" / "!=") _ CompareExpression)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 CompareExpression
     = first:ShiftExpression rest:((">=" / "<=" / ">" / "<") _ ShiftExpression)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 ShiftExpression
     = first:AdditionExpression rest:(("<<" / ">>") _ AdditionExpression)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 AdditionExpression
     = first:MultiplicationExpression rest:(("+" / "-") _ MultiplicationExpression)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 MultiplicationExpression
     = first:UnaryExpression rest:(("*" / "/" / "%") _ UnaryExpression)*
-        { return assoc(first, rest) }
+        { return assoc(first, rest, location ) }
 
 UnaryExpression
     = "+" _ value:TopExpression
         { return value }
     / "-" _ value:TopExpression
-        { return { type: "UnaryExpression", operation: "Negate", value } }
+        { return { type: "UnaryExpression", operation: "Negate", value, location } }
     / "~" _ value:TopExpression
-        { return { type: "UnaryExpression", operation: "Complement", value } }
+        { return { type: "UnaryExpression", operation: "Complement", value, location } }
     / "!" _ value:TopExpression
-        { return { type: "UnaryExpression", operation: "Not", value } }
+        { return { type: "UnaryExpression", operation: "Not", value, location } }
     / TopExpression
 
 TopExpression
     = "@" name:Identifier "(" _ args:ExpressionList? ")" _
-        { return { type: "FunctionExpression", name, args } }
+        { return { type: "FunctionExpression", name, args, location } }
     / "(" _ e:Expression ")" _
         { return e; }
     / "*" _
-        { return { type: "LocationCounter" } }
+        { return { type: "LocationCounter", location } }
     / value:Identifier
-        { return { type: 'Symbol', value } }
+        { return { type: 'Symbol', value, location } }
     / value:String
-        { return { type: 'String', value } }
+        { return { type: 'String', value, location } }
     / value:Number
-        { return { type: 'Number', value } }
+        { return { type: 'Number', value, location } }
 
 // Atomic values
 Label

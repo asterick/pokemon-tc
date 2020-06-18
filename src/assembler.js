@@ -3,6 +3,7 @@ const fs = require("fs");
 const pegjs = require("pegjs");
 
 const table = require("./table.js");
+const { parse } = require("path");
 
 const mnemonic = 
     Object.keys(table.INSTRUCTION_TABLE)
@@ -16,16 +17,22 @@ const parser = pegjs.generate(parseSource, {
     cache: true
 });
 
-function parse(source) {
-    try {
-        const body = parser.parse(source);
-        console.log(JSON.stringify(body,null,4))
-    } catch(e) {
-        console.log(source);
-        throw e;
+class Assembler {
+    constructor(env) {
+        this._env = env;
+    }
+
+    parse(fn, target) {
+        const source = this._env.load(fn, 'utf-8', target);
+        return parser.parse(source);
+    }
+
+    assemble(fn) {
+        const lines = this.parse(fn, 'local');
+        console.log(lines);
     }
 }
 
 module.exports = {
-    parse
+    Assembler
 };

@@ -10,18 +10,19 @@ const parser = new ArgumentParser({
     addHelp: true
 });
 
-parser.addArgument('input', {
-    help: "Source and object files",
-    nargs: Const.ONE_OR_MORE
+parser.addArgument('objects', {
+    help: "Object files",
+    nargs: Const.ZERO_OR_MORE
 });
 
-let kind = parser.addMutuallyExclusiveGroup()
-kind.addArgument(["-a", "--assemble"], {
-    action: "storeTrue"
+parser.addArgument(["-a", "--assemble"], {
+    help: "Assemble file",
+    defaultValue: [],
+    action: "append"
 });
 
-kind.addArgument(["-l", "--link"], {
-    action: "storeTrue"
+parser.addArgument(["-e", "--export"], {
+    help: "Export binary"
 });
 
 parser.addArgument(["-O", "--optimize"], {
@@ -32,26 +33,27 @@ parser.addArgument(["-M"], {
     help: "Set memory model"
 });
 
-parser.addArgument(["-I"], {
+parser.addArgument(["-I", '--includePath'], {
     help: "Add include search path",
+    defaultValue: [],
     action: "append"
 });
 
-parser.addArgument(["-L"], {
+parser.addArgument(["-L", '--libraryPath'], {
     help: "Add library search path",
+    defaultValue: [],
     action: "append"
 });
 
-parser.addArgument(
-    ['-D', "--define"], {
-        help: "Define expression",
-        action: "append"
-    }
-)
+parser.addArgument(['-D', "--define"], {
+    help: "Define expression",
+    defaultValue: [],
+    action: "append"
+});
 
 parser.addArgument(['-o', '--output'], {
     help: "Target filename",
     argumentDefault: "a.out"
-})
+});
 
 module.exports = parser.parseArgs();

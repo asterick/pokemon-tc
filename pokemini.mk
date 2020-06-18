@@ -21,7 +21,7 @@ endif
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	node $(TOOLCHAIN)src/ptc.js --link $(LKFLAGS) -o $@ $^
+	node $(TOOLCHAIN)src/ptc.js --export $@ $(LKFLAGS) $^
 
 clean:
 	rm -f $(TARGET) $(OBJECTS)
@@ -30,7 +30,7 @@ clean:
 	$(C88) $(CFLAGS) -n -o $@ $<
 
 %.obj: %.s $(TOOLCHAIN)src/table.js
-	node $(TOOLCHAIN)src/ptc.js --assemble $(EXPORT_FLAGS) $(ASFLAGS) -o $@ $<
+	node $(TOOLCHAIN)src/ptc.js $(EXPORT_FLAGS) $(ASFLAGS) -a $< -o $@
 
 $(TOOLCHAIN)src/table.js: $(TOOLCHAIN)tools/convert.py $(TOOLCHAIN)tools/s1c88.csv
 	python3 $(TOOLCHAIN)tools/convert.py > $@
