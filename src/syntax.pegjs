@@ -50,7 +50,7 @@ DirectiveStatement
     / "EXTERN"i WB ("(" WS IdentifierList ")" WS)? IdentifierList
     / "COMMENT"i WB delimiter:. (c:. !{ c == delimiter})*
     / "DEFINE"i WB Identifier Expression
-    / "DEFSECT"i WB ExpressionList ("AT"i WB Expression)?
+    / "DEFSECT"i WB String "," WS Identifier ( "," WS SectionAttribute)* ("AT"i WB Expression)?
     / "UNDEF"i WB Identifier
     / "DUPA"i WB Identifier "," WS ExpressionList
     / "DUPC"i WB Identifier "," WS Expression
@@ -82,6 +82,16 @@ DirectiveSimple
     / "DS"i
     / "DW"i
 
+SectionAttribute
+    = "FIT"i WB Number
+    / "SHORT"i WB
+    / "CLEAR"i WB
+    / "NOCLEAR"i WB
+    / "INIT"i WB
+    / "OVERLAY"i WB
+    / "ROMDATA"i WB
+    / "JOIN"i WB
+
 // Instruction Statements
 InstructionStatement
     = name:Mnemonic WB operands:OperandList?
@@ -89,8 +99,6 @@ InstructionStatement
 
 Operand
     = Expression
-    / "#" WS value:Expression
-        { return { type:"Immediate", value } }
     / "[" WS address:Expression "]" WS
         { return { type:"MemoryAccess", address } }
     / "[" WS "BR"i WS ":" WS address:Expression "]" WS
@@ -180,9 +188,14 @@ TopExpression
         { return { type: "FunctionExpression", name, args } }
     / "(" WS e:Expression ")" WS
         { return e; }
-    / Number
-    / Identifier
-    / String
+    / "#" WS value:Expression
+        { return { type: 'Immediate', value } }
+    / value:Identifier
+        { return { type: 'Symbol', value } }
+    / value:String
+        { return { type: 'String', value } }
+    / value:Number
+        { return { type: 'Number', value } }
 
 // Atomic values
 Label

@@ -19,12 +19,16 @@ const parser = pegjs.generate(parseSource, {
 
 function parse(source) {
     while (source) {
-        const row = parser.parse(source);
-        const statement = row.body.statement
-        source = row.remainder;
-        
-        if (!statement) continue ;
-        console.log(statement.type);
+        try {
+            const row = parser.parse(source);
+            const statement = row.body.statement
+            console.log(statement)
+            source = row.remainder;
+        } catch(e) {
+            console.log(source)
+            throw e;
+            break ;
+        }
     }
 }
 
