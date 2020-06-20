@@ -1,5 +1,4 @@
 $CASE ON
-
         ;; Begin startup code
 	DEFSECT	".startup", CODE, SHORT
 	SECT	".startup"
@@ -10,6 +9,8 @@ SWAP_MEM MACRO REG1,REG2 ;swap memory contents
          LD [_lab\?REG1],B
          LD [_lab\?REG2],A
          ENDM
+
+        INCLUDE "test_include.s"
 
 __start_cpt:
 __START:
@@ -49,3 +50,10 @@ __START:
         else
                 ;EXITM
         ENDIF
+
+        DEFINE  POOPIE  "asdf"
+carp:   DEFINE  POOPIE  "fdsa"  ; Right here
+        ASCIZ   "GAME_TITLE"
+        UNDEF   POOPIE
+        MACO    POOPIE
+        carp EQU *

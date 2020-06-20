@@ -9,4 +9,3 @@ args.assemble.forEach((fn) => {
 
     assembler.assemble(fn);
 });
-

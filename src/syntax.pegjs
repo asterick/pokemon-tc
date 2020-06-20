@@ -30,13 +30,12 @@
 }
 
 SourceFile
-    = _ a:(v:Statement Comment? EOL { return v })* b:Statement Comment? EOL?
-        { return a.concat(b) }
+    = _ label:Label? statement:Statement comment:$Comment? remainder:(EOL v:$(.*) { return v })?
+        { return { label, statement, comment, remainder } }
 
 Statement
-    = ControlStatement 
-    / label:Label? statement:(InstructionStatement / DirectiveStatement / MacroCallStatement)?
-        { return { type: "Statement", label, statement, location }}
+    = statement:(ControlStatement / InstructionStatement / DirectiveStatement / MacroCallStatement)?
+        { return { type: "Statement", statement, location }}
 
 // Control Statements
 ControlStatement
@@ -49,7 +48,7 @@ DirectiveStatement
     = "CALLS"i WB caller:String callees:("," _ callee:String stack:("," _ v:Expression { return v})? { return { callee, stack } } )+
         { return { type:"CallTraceDirective", caller, callees, location } }
     / "SYMB"i WB operands:OperandList
-        { return { type:"DebugSymbolDirective",  operands, location } }
+        { return { type:"DebugSymbolDirective", operands, location } }
 
     // Assembly Control
     / "ALIGN"i WB value:Expression
@@ -58,8 +57,8 @@ DirectiveStatement
         { return { type: "CommentDirective", text, location } }
     / "DEFINE"i WB name:Identifier value:String
         { return { type: "DefineDirective", name, value, location } }
-    / "DEFSECT"i WB name:String "," _ type:Identifier attributes:("," _ v:SectionAttribute { return v })* location:("AT"i WB v:Expression { return v})?
-        { return { type: "DefineSectionDirective", name, type, attributes, location, location } }
+    / "DEFSECT"i WB name:String "," _ kind:Identifier attributes:("," _ v:SectionAttribute { return v })* location:("AT"i WB v:Expression { return v})?
+        { return { type: "DefineSectionDirective", name, kind, attributes, location, location } }
     / "END"i WB
         { return { type: "EndDirective", location } }
     / "FAIL"i WB msgs:ExpressionList?
@@ -74,7 +73,7 @@ DirectiveStatement
         { return { type: "RadixDirective", value, location } }
     / "SECT"i WB name:String reset:("," _ "RESET"i WB)?
         { return { type: "SectionDirective", name, reset:Boolean(reset), location } }
-    / "UNDEF"i WB IdentifierList
+    / "UNDEF"i WB names:IdentifierList
         { return { type: "UndefineDirective", names, location } }
     / "WARN"i WB msgs:ExpressionList?
         { return { type: "WarnDirective", msgs, location } }

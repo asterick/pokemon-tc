@@ -3,15 +3,20 @@ const path = require('path');
 
 class Environment {
     constructor(args) {
-        this._defines = Object.create(process.env);
+        this.defines = {};
 
         args.define.forEach((d) => {
-            const [ _, key, value ] = /^(.*?)=(.*)$/.exec(d);
-            this._defines[key] = value;
+            const match = /^([a-z_]\w*)=(.*)$/i.exec(d);
+            if (!match) {
+                throw new Error(`Illegal define: ${d}`);
+            }
+            
+            const [ _, key, value ] = match;
+            this.defines[key] = value;
         })
 
-        this._includePaths = args.includePath;
-        this._libraryPaths = args.libraryPath;
+        this.includePaths = args.includePath;
+        this.libraryPaths = args.libraryPath;
     }
 
     load (name, format, zone) {
@@ -22,7 +27,7 @@ class Environment {
         }
 
         if (zone != 'local') {
-            paths.push(... this._includePaths.map((p) => path.join(p, name)))
+            paths.push(... this.includePaths.map((p) => path.join(p, name)))
         }
 
         for (let fn of paths) {
